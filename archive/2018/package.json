@@ -1,0 +1,19 @@
+{
+  "name": "changingsit_",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-packager . --out=dist --asar --overwrite --platform=win32 --arch=ia32 --version-string.ProductName=\"ChangingSit\""
+  },
+  "author": "melee",
+  "license": "MIT",
+  "dependencies": {
+    "electron": "^1.8.4",
+    "xlsx": "^0.12.5"
+  },
+  "devDependencies": {
+    "electron-packager": "^11.1.0"
+  }
+}

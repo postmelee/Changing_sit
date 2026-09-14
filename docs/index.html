@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="엑셀 명렬표로 교실 자리를 바꾸는 Changing Sit. 2018년 Electron 프로젝트의 브라우저 이식판입니다.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Changing Sit · 자리 바꾸기</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="vendor/xlsx.full.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="intro">
+    <div><p class="eyebrow">CHANGING SIT · 2018 PROJECT</p><h1>명렬표는 한 번, 자리는 새롭게.</h1><p>이름이 있는 엑셀의 첫 번째 시트를 불러오세요. 최대 40명까지 배치할 수 있습니다.</p></div>
+    <a class="about" href="https://github.com/postmelee/Changing_sit">프로젝트 이야기 ↗</a>
+  </header>
+  <section class="toolbar" aria-label="자리 배치 도구">
+    <button id="sample">예시 명렬표</button>
+    <label class="file-label" for="file-object">엑셀 불러오기</label><input type="file" id="file-object" accept=".xlsx,.xls,.csv">
+    <a class="sample-download" href="sample-roster.xlsx" download>예시 엑셀 ↓</a>
+    <span class="divider"></span>
+    <button id="shuffle" class="primary" disabled>자리 바꾸기</button>
+    <button id="slow" disabled>천천히 공개</button>
+    <button id="pairs">멘토·멘티 예시</button>
+    <button id="reverse">시점 변환</button>
+    <button id="clear">초기화</button>
+  </section>
+  <p id="status" role="status" aria-live="polite">‘예시 명렬표’를 누르면 바로 체험할 수 있습니다.</p>
+  <main class="classroom" id="classroom" aria-label="40석 교실 자리표">
+    <div class="board" id="board">2학년 8반 자리표</div>
+    <div class="groups" id="groups"></div>
+  </main>
+  <footer><p>명렬표는 이 브라우저 안에서만 읽으며 서버로 전송하지 않습니다. 새로고침하면 지워집니다.</p><p>2018년 Electron 앱의 UI를 바탕으로 2026년에 웹 실행과 입력·초기화 처리를 보완했습니다. <a href="assets/original-ui-reproduction.png">원본 UI 재현 보기</a></p></footer>
+</body>
+</html>

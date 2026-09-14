@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>자리 바꾸기</title>
+        <link rel="stylesheet" href="mainWindow.css" type="text/css">
+    </head>
+    <body>
+        <div id="menu">
+        <input type="file" id="file-object">
+        <input type="button" id="startpro" value="자리 바꾸기">
+        <input type="button" id="startpro_delay" value="자리 천천히 바꾸기">
+        <input type="button" id="startpro_delay_mm" value="멘토 멘티 자리 바꾸기">
+        <input type="button" id="reverse" value="시점 변환">
+        <input type="button" id="clear" value="초기화">
+        </div>
+        <hr>
+        <div id="view_1">
+        <table id="board">
+            <tr>
+                <td>
+                    2학년 8반 자리표
+                </td>
+            </tr>
+        </table>
+        </div>
+        <table class="mainTable_l">
+            <tbody>
+                <tr>
+                    <td id="1">
+                    </td>
+                    <td id="2">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="3">
+                    </td>
+                    <td id="4">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="5">
+                    </td>
+                    <td id="6">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="7">
+                    </td>
+                    <td id="8">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="9">
+                    </td>
+                    <td id="10">
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <table class="mainTable_m">
+            <tbody>
+                <tr>
+                    <td id="11">
+                    </td>
+                    <td id="12">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="13">
+                    </td>
+                    <td id="14">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="15">
+                    </td>
+                    <td id="16">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="17">
+                    </td>
+                    <td id="18">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="19">
+                    </td>
+                    <td id="20">
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <table class="mainTable_m">
+            <tbody>
+                <tr>
+                    <td id="21">
+                    </td>
+                    <td id="22">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="23">
+                    </td>
+                    <td id="24">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="25">
+                    </td>
+                    <td id="26">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="27">
+                    </td>
+                    <td id="28">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="29">
+                    </td>
+                    <td id="30">                        
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <table class="mainTable_r">
+            <tbody>
+                <tr>
+                    <td id="31">
+                    </td>
+                    <td id="32">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="33">
+                    </td>
+                    <td id="34">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="35">
+                    </td>
+                    <td id="36">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="37">
+                    </td>
+                    <td id="38">
+                    </td>
+                </tr>
+                <tr>
+                    <td id="39">
+                        
+                    </td>
+                    <td id="40">
+                        
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <div id="view_2"></div>
+        <script>
+            
+            const file = document.getElementById('file-object');
+            const start = document.getElementById('startpro');
+            const startWithDelay = document.getElementById('startpro_delay');
+            const startWithDelay_mm = document.getElementById('startpro_delay_mm');
+            const clear_event = document.getElementById('clear');
+            const reverse_display = document.getElementById('reverse');
+            const XLSX = require('xlsx');
+            var jsn = [];
+            var mento_menti = [{"isFront": false, "mento": "학생01", "menti": "학생02"}, {"isFront": false, "mento": "학생03", "menti": "학생04"}, {"isFront": false, "mento": "학생05", "menti": "학생06"}, {"isFront": false, "mento": "학생07", "menti": "학생08"}, {"isFront": false, "mento": "학생09", "menti": "학생10"}, {"isFront": false, "mento": "학생11", "menti": "학생12"}, {"isFront": false, "mento": "학생13", "menti": "학생14"}, {"isFront": false, "mento": "학생15", "menti": "학생16"}, {"isFront": false, "mento": "학생17", "menti": "학생18"}, {"isFront": false, "mento": "학생19", "menti": "학생20"}, {"isFront": false, "mento": "학생21", "menti": "학생22"}, {"isFront": false, "mento": "학생23", "menti": "학생24"}, {"isFront": false, "mento": "학생25", "menti": "학생26"}, {"isFront": false, "mento": "학생27", "menti": "학생28"}, {"isFront": false, "mento": "학생29", "menti": "학생30"}, {"isFront": false, "mento": "학생31", "menti": "학생32"}, {"isFront": false, "mento": "학생33", "menti": "학생34"}, {"isFront": false, "mento": "학생35", "menti": "학생36"}, {"isFront": false, "mento": "학생37", "menti": "학생38"}];
+            var reverseDisplay = function(){
+                var id = 1;
+                const max = 41;
+                if(document.getElementById("view_2").innerHTML == ""){
+                    document.getElementById("view_2").innerHTML = "<table id=\"board\"><tr><td>2학년 8반 자리표</td></tr></table>"
+                    document.getElementById("view_1").innerHTML = ""
+                }
+                else{
+                    document.getElementById("view_1").innerHTML = "<table id=\"board\"><tr><td>2학년 8반 자리표</td></tr></table>"
+                    document.getElementById("view_2").innerHTML = ""
+                }
+                
+                for(id; id<=20; id++){
+                    var temp = document.getElementById(String(id)).innerText
+                    document.getElementById(String(id)).innerHTML = document.getElementById(String(max - id)).innerText;
+                    document.getElementById(String(max - id)).innerHTML = temp;
+                }
+            }
+            var clearDisplay = function(target) {
+                var i = 1;
+                if(jsn.length == 0){
+                    alert('명렬표를 먼저 등록해 주세요.');
+                    return 0;
+                }
+                var max = jsn.length;
+                for(i;i<=max;i++){
+                    target(i);
+                }
+                return 1;
+            }
+            var clearName = function(i) {
+                element = document.getElementById(String(i));
+                element.innerHTML = "";
+            }
+            var clearBackground = function(i) {
+                element = document.getElementById(String(i));
+                element.style.backgroundColor = "white";
+            }
+
+            var makeMixedArr = function(max_len) {
+                var arr = [];
+                var j, x, i;
+                var num = 1;
+                for (num; num <= max_len; num += 1){
+                    arr.push(num);
+                }
+                for (i = arr.length; i; i -= 1) {
+                    j = Math.floor(Math.random() * i);
+                    x = arr[i - 1];
+                    arr[i - 1] = arr[j];
+                    arr[j] = x;
+                }
+                return arr;
+            }
+            var showResult = function (std_sit_arr, index, std_name_arr, std_num_arr) {
+                document.getElementById(String(std_sit_arr[index])).innerHTML = std_name_arr[std_num_arr[index]-1]["__EMPTY"];
+            }
+            var showResultWithDelay = function (std_sit_arr, index, std_name_arr, std_num_arr) {
+                const element = document.getElementById(String(std_sit_arr[index]));
+                element.innerHTML = std_name_arr[std_num_arr[index]-1]["__EMPTY"];
+                element.style.backgroundColor = "rgba(132,125,236,0.7)";
+                if(index != 0){
+                    document.getElementById(String(std_sit_arr[index-1])).style.backgroundColor = "white";
+                }
+            }
+            var startRandomizeWithDelay = function(std_name_arr, start_m, ending_m){
+                var std_max_num = std_name_arr.length
+                var std_sit_arr = makeMixedArr(std_max_num);
+                var std_num_arr = makeMixedArr(std_max_num);
+                var index = 0;
+                var loop = function () {
+                    setTimeout(function() {
+                        const element = document.getElementById(String(std_sit_arr[index]));
+                        element.innerHTML = std_name_arr[std_num_arr[index]-1]["__EMPTY"];
+                        element.style.backgroundColor = "rgba(132,125,236,0.7)";
+                        if(index != 0){
+                            document.getElementById(String(std_sit_arr[index-1])).style.backgroundColor = "white";
+                        }
+                        index++;
+                        if(index == std_max_num){
+                            start_m.pause();
+                            ending_m.play();
+                            setTimeout(function(){
+                                element.style.backgroundColor = "white";
+                            }, 1000);
+                        }
+                        if(index < std_max_num){
+                            loop();
+                        }
+                    }, 1000);
+                }
+                loop();
+                start_m.play();
+                
+            }
+            var startRandomizeWithDelayMM = function(std_name_arr, start_m, ending_m){
+                var std_max_num = std_name_arr.length
+                var std_sit_arr = makeMixedArr(std_max_num);
+                var std_num_arr = makeMixedArr(std_max_num);
+                var index = 0;
+                var loop = function () {
+                    setTimeout(function() {
+                        const sit_number = ((std_sit_arr[index] * 2) - 1);
+                        const mm_object = std_name_arr[std_num_arr[index] - 1];
+                        const element_mento = document.getElementById(String(sit_number));
+                        const element_menti = document.getElementById(String(sit_number + 1));
+                        console.log(mm_object)
+                        element_mento.innerHTML = mm_object["mento"];
+                        element_menti.innerHTML = mm_object["menti"];
+
+                        element_mento.style.backgroundColor = "rgba(132,125,236,0.7)";
+                        element_menti.style.backgroundColor = "rgba(132,125,236,0.7)";
+                        if(index != 0){
+                            document.getElementById(String(std_sit_arr[index-1] * 2 - 1)).style.backgroundColor = "white";
+                            document.getElementById(String(std_sit_arr[index-1] * 2)).style.backgroundColor = "white";
+                        }
+                        index++;
+                        if(index == std_max_num){
+                            start_m.pause();
+                            ending_m.play();
+                            setTimeout(function(){
+                                element_mento.style.backgroundColor = "white";
+                                element_menti.style.backgroundColor = "white";
+                            }, 1000);
+                        }
+                        if(index < std_max_num){
+                            loop();
+                        }
+                    }, 1000);
+                }
+                loop();
+                start_m.play();
+                
+            }
+            var startRandomize = function(std_name_arr){
+                var std_max_num = std_name_arr.length
+                var std_sit_arr = makeMixedArr(std_max_num);
+                var std_num_arr = makeMixedArr(std_max_num);
+                var index = 0;
+                for (index;index<std_max_num;index++){
+                    showResult(std_sit_arr, index, std_name_arr, std_num_arr)
+                }
+            }
+            start.addEventListener("click", function(e) {
+                startRandomize(jsn);
+            })
+            startWithDelay_mm.addEventListener("click", function(e) {
+                var start_m = new Audio('kkutu_mix.mp3');
+                var ending_m = new Audio('ending.mp3');
+                clearDisplay(clearName);
+                startRandomizeWithDelayMM(mento_menti, start_m, ending_m);
+            })
+            startWithDelay.addEventListener('click', function(e) {
+                var start_m = new Audio('kkutu_mix.mp3');
+                var ending_m = new Audio('ending.mp3');
+                if(clearDisplay(clearName)){
+                    startRandomizeWithDelay(jsn, start_m, ending_m);
+                }
+                
+            })
+            clear_event.addEventListener('click', function(e){
+                clearDisplay(clearName);
+                clearDisplay(clearBackground);
+            })
+            reverse_display.addEventListener('click', function(e){
+                reverseDisplay();
+            })
+            file.addEventListener("change", function(e) {
+                var files = e.target.files,file;
+                if (!files || files.length == 0) return;
+                file = files[0];
+                var fileReader = new FileReader();
+                fileReader.onload = function (e) {
+                    var filename = file.name;
+                    // call 'xlsx' to read the file
+                    var binary = "";
+                    var bytes = new Uint8Array(e.target.result);
+                    var length = bytes.byteLength;
+                    for (var i = 0; i < length; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    var oFile = XLSX.read(binary, {type: 'binary', cellDates:true, cellStyles:true});
+                    var first_sheet_name = oFile.SheetNames[0];
+                    var worksheet = oFile.Sheets[first_sheet_name];
+                    var json = XLSX.utils.sheet_to_json(worksheet,{raw:true});
+                    jsn = json
+                    console.log(jsn)
+                    };
+                fileReader.readAsArrayBuffer(file);
+    
+                })
+            </script>
+    </body>
+</html>
