@@ -106,8 +106,10 @@
     const layout = seatGroups(rows, columns, paired, reverse);
     groups.style.gridTemplateColumns = layout.map(group => `minmax(0, ${group.width}fr)`).join(' ');
     groups.style.minHeight = `${rows * 45}px`;
+    byId('classroom').style.setProperty('--print-font-size', `${Math.min(18, 120 / Math.max(rows, columns))}pt`);
     for (const group of layout) {
       const wrapper = document.createElement('div'); wrapper.className = 'seat-group';
+      wrapper.style.setProperty('--row-count', rows);
       wrapper.style.gridTemplateColumns = `repeat(${group.width}, minmax(0, 1fr))`;
       wrapper.style.gridTemplateRows = `repeat(${rows}, minmax(36px, 1fr))`;
       for (const index of group.indices) {
@@ -118,7 +120,7 @@
     }
     byId('classroom').setAttribute('aria-label', `${capacity()}석 교실 자리표`);
     byId('seat-summary').textContent = `${columns}열 × ${rows}행 · ${capacity()}석`;
-    byId('pairs').disabled = !paired || columns % 2 !== 0 || capacity() < 38;
+    byId('pairs').setAttribute('aria-disabled', String(!paired || columns % 2 !== 0 || capacity() < 38));
     render();
   }
   function render(highlight = -1) {
@@ -131,6 +133,7 @@
     byId('classroom').classList.toggle('reversed', reverse);
     byId('reverse').setAttribute('aria-pressed', String(reverse));
     byId('reverse').title = reverse ? '칠판에서 학생을 바라보는 방향' : '칠판을 바라보는 방향';
+    syncPrint();
   }
   function stop() { run++; clearTimeout(timer); timer = null; revealing = false; silence(); byId('sound-status').textContent = ''; }
   function ready() {
@@ -173,7 +176,7 @@
       batch.forEach(seat => { seats[seat] = target[seat]; }); render(batch);
       if (index < batches.length) timer = setTimeout(reveal, 1000);
       else {
-        revealing = false; backgroundMusic.pause(); backgroundMusic.currentTime = 0; playAudio(endingSound);
+        revealing = false; syncPrint(); backgroundMusic.pause(); backgroundMusic.currentTime = 0; playAudio(endingSound);
         timer = setTimeout(() => { if (token === run) render(); }, 1000);
         announce(completedMessage);
       }
@@ -187,7 +190,7 @@
     revealPlacement(target, mixed(occupied.length).map(i => [occupied[i]]), `${names.length}명의 자리 배치가 완료되었습니다.`);
   });
   byId('pairs').addEventListener('click', () => {
-    if (!paired || columns % 2 !== 0 || capacity() < 38) return;
+    if (!paired || columns % 2 !== 0 || capacity() < 38) { announce('멘토·멘티 예시는 짝꿍형·짝수 열·38석 이상에서 사용할 수 있습니다.', true); return; }
     importRun++; installRoster(sampleNames(), '멘토·멘티 예시 명렬표');
     const positions = mixed(capacity() / 2), pairs = mixed(19), target = Array(capacity()).fill(''), batches = [];
     pairs.forEach((pair, i) => {
@@ -225,7 +228,7 @@
   byId('chart-title').addEventListener('keydown', event => { if (event.key === 'Enter') event.target.blur(); });
   function syncFullscreen() {
     const active = document.fullscreenElement === workspace || workspace.classList.contains('is-expanded');
-    byId('fullscreen').textContent = active ? '⛶ 전체화면 나가기' : '⛶ 전체화면';
+    byId('fullscreen').textContent = active ? '전체화면 나가기' : '전체화면';
     byId('fullscreen').setAttribute('aria-pressed', String(active));
     document.body.classList.toggle('expanded', active);
   }
@@ -245,6 +248,52 @@
   document.addEventListener('fullscreenchange', syncFullscreen);
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && workspace.classList.contains('is-expanded')) { workspace.classList.remove('is-expanded'); syncFullscreen(); byId('fullscreen').focus(); }
+  });
+  byId('sidebar-toggle').addEventListener('click', () => {
+    const hidden = !byId('sidebar').hidden;
+    byId('sidebar').hidden = hidden;
+    byId('app').classList.toggle('sidebar-hidden', hidden);
+    byId('sidebar-toggle').textContent = hidden ? '설정 보이기' : '설정 숨기기';
+    byId('sidebar-toggle').setAttribute('aria-expanded', String(!hidden));
+  });
+  const pairsInfo = byId('pairs-info'), helpToggle = byId('pairs-help-toggle');
+  function dismissHelp() {
+    pairsInfo.classList.remove('open'); pairsInfo.classList.add('dismissed');
+    helpToggle.setAttribute('aria-expanded', 'false');
+  }
+  helpToggle.addEventListener('click', () => {
+    if (pairsInfo.classList.contains('open')) dismissHelp();
+    else {
+      pairsInfo.classList.remove('dismissed'); pairsInfo.classList.add('open');
+      helpToggle.setAttribute('aria-expanded', 'true');
+    }
+  });
+  pairsInfo.addEventListener('mouseleave', () => pairsInfo.classList.remove('dismissed'));
+  pairsInfo.addEventListener('focusout', event => {
+    if (!pairsInfo.contains(event.relatedTarget)) { pairsInfo.classList.remove('open'); pairsInfo.classList.remove('dismissed'); helpToggle.setAttribute('aria-expanded', 'false'); }
+  });
+  pairsInfo.addEventListener('keydown', event => { if (event.key === 'Escape') dismissHelp(); });
+  function syncPrint() {
+    byId('print').disabled = revealing || !names.length || seats.filter(Boolean).length !== names.length;
+  }
+  let titleBeforePrint = null;
+  function restorePrintTitle() {
+    if (titleBeforePrint !== null) { document.title = titleBeforePrint; titleBeforePrint = null; }
+  }
+  window.addEventListener('afterprint', restorePrintTitle);
+  window.addEventListener('beforeprint', silence);
+  byId('print').addEventListener('click', async () => {
+    syncPrint(); if (byId('print').disabled) return;
+    silence(); render();
+    try {
+      if (document.fullscreenElement === workspace) await document.exitFullscreen();
+      if (titleBeforePrint === null) titleBeforePrint = document.title;
+      document.title = byId('chart-title').value.trim() || '우리 반 자리표';
+      window.print();
+    } catch {
+      restorePrintTitle();
+      announce('인쇄 창을 열지 못했습니다. 브라우저의 인쇄 메뉴를 사용해 주세요.', true);
+    }
   });
   buildGrid();
 })();

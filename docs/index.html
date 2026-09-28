@@ -5,20 +5,20 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="엑셀 명렬표를 불러와 우리 교실에 맞게 자리를 배치하세요. 교실 크기, 자리표 제목, 전체화면을 지원합니다.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>Changing Sit · 자리 바꾸기</title>
+  <title>자리 바꾸기</title>
   <link rel="stylesheet" href="style.css">
   <script src="vendor/xlsx.full.min.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar" aria-label="명렬표와 교실 설정">
-      <header class="app-brand"><span class="brand-icon" aria-hidden="true">▦</span><div><h1>자리 바꾸기</h1><span>CHANGING SIT</span></div></header>
+  <div class="app" id="app">
+    <aside id="sidebar" class="sidebar" aria-label="명렬표와 교실 설정">
+      <header><h1>자리 바꾸기</h1></header>
       <section class="settings-section" aria-labelledby="roster-heading">
         <h2 id="roster-heading">명렬표</h2>
-        <button id="import" class="upload-button">엑셀 불러오기 <span aria-hidden="true">↑</span></button>
+        <button id="import" class="upload-button">엑셀 불러오기</button>
         <input type="file" id="file-object" accept=".xlsx,.xls,.csv" hidden>
-        <p class="help">첫 번째 시트의 이름을 읽어옵니다.<br>xlsx · xls · csv / 최대 5MB</p>
+        <p class="help">첫 시트의 이름 열 · 최대 5MB<br>지원 형식: .xlsx, .xls, .csv</p>
         <div class="roster-info"><span id="roster-name">불러온 명렬표 없음</span><strong id="roster-count">0명</strong></div>
         <div class="sample-actions"><button id="sample" class="text-button">예시로 시작</button><a href="sample-roster.xlsx" download>예시 엑셀 ↓</a></div>
       </section>
@@ -34,19 +34,22 @@
           <select id="desk-style"><option value="paired">짝꿍형 · 두 자리씩</option><option value="individual">개별형 · 한 자리씩</option></select>
           <div class="capacity-line"><span id="capacity-preview">총 40석</span><span>행·열 각각 1~12</span></div>
           <button type="submit" class="apply-button">배치 적용</button>
-          <p class="help">배치를 바꾸면 현재 자리는 비워지고<br>명렬표는 유지됩니다.</p>
+          <p class="help">적용하면 자리를 비웁니다.<br>명렬표는 유지됩니다.</p>
         </form>
       </section>
-      <details class="extra-tools"><summary>추가 기능</summary><button id="pairs">멘토·멘티 예시</button><p class="help">예시 학생 38명을 19쌍으로 배치합니다.<br>짝꿍형 · 가로 짝수 · 38석 이상에서 사용할 수 있습니다.</p></details>
-      <footer>명렬표는 브라우저 안에서만 읽습니다.<br>서버로 전송하지 않으며, 새로고침하면 지워집니다.</footer>
+      <footer>명렬표는 서버로 전송하지 않습니다.<br>새로고침하면 이름과 배치가 지워집니다.</footer>
     </aside>
     <main id="workspace" class="workspace" aria-label="자리표 작업 공간">
       <header class="workspace-header">
-        <div class="title-field"><label for="chart-title">자리표 제목 <span>클릭해서 수정</span></label><input id="chart-title" value="우리 반 자리표" maxlength="50" autocomplete="off" aria-label="자리표 제목"></div>
-        <button id="fullscreen" aria-pressed="false"><span aria-hidden="true">⛶</span> 전체화면</button>
+        <button id="sidebar-toggle" aria-controls="sidebar" aria-expanded="true">설정 숨기기</button>
+        <div class="title-field"><label for="chart-title">자리표 제목</label><input id="chart-title" value="우리 반 자리표" maxlength="50" autocomplete="off" aria-label="자리표 제목"></div>
+        <div class="action-group view-actions">
+          <button id="fullscreen" aria-pressed="false">전체화면</button>
+          <button id="print" disabled title="배치를 완료한 뒤 사용할 수 있습니다. 인쇄 창에서 PDF로 저장하거나 프린터를 선택하세요.">PDF 저장 / 인쇄</button>
+        </div>
       </header>
       <section class="toolbar" aria-label="자리 배치 도구">
-        <div class="action-group"><button id="shuffle" class="primary" disabled>자리 바꾸기</button><button id="slow" disabled>천천히 공개</button></div>
+        <div class="action-group"><button id="shuffle" class="primary" disabled>자리 바꾸기</button><button id="slow" disabled>천천히 공개</button><div class="tooltip-wrap" id="pairs-info"><button id="pairs" aria-describedby="pairs-help">멘토·멘티 예시</button><button id="pairs-help-toggle" class="help-toggle" aria-label="멘토·멘티 설명" aria-expanded="false" aria-controls="pairs-help">?</button><span id="pairs-help" class="tooltip" role="tooltip">예시 학생 38명을 19쌍으로 묶어 한 쌍씩 공개합니다. 현재 명렬표는 예시 명렬표로 바뀌며, 불러온 학생의 실제 멘토·멘티 관계를 설정하는 기능은 아닙니다. 짝꿍형·짝수 열·38석 이상에서 사용할 수 있습니다.</span></div></div>
         <div class="action-group secondary-actions"><button id="sound" aria-pressed="true" title="천천히 공개할 때 배경음악과 완료음 재생">소리 켜짐</button><button id="reverse" aria-pressed="false">시점 변환</button><button id="clear">자리 비우기</button></div>
       </section>
       <span id="sound-status" class="sound-status" aria-live="polite"></span>
