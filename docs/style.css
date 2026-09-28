@@ -61,7 +61,7 @@ footer { border-top: 1px solid #d4d9d4; padding-top: 12px; font-size: 11px; line
 .toolbar { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .action-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .primary { background: #365b30; border-color: #365b30; color: #fff; font-weight: 650; }
-.primary:hover:not(:disabled) { background: #294824; border-color: #294824; }
+.primary:hover:not(:disabled):not([aria-disabled="true"]) { background: #294824; border-color: #294824; }
 .status-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 20px; }
 #status { margin: 0; font-size: 12px; color: #4b574d; line-height: 1.5; }
 #status.error { color: #a42a21; }
