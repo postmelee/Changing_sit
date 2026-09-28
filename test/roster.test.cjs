@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const XLSX = require('../docs/vendor/xlsx.full.min.js');
-const { readNames, makePlacement, sampleNames, validateLayout, seatGroups } = require('../docs/app.js');
+const { readNames, readRoster, makePairPlacement, makePlacement, sampleNames, validateLayout, seatGroups } = require('../docs/app.js');
 
 test('reads an actual workbook with the original blank name header', () => {
   const sheet = XLSX.utils.aoa_to_sheet([['번호', null], [1, '가람'], [2, '나래']]);
@@ -51,11 +51,16 @@ test('rejects invalid dimensions and insufficient seats without truncating names
   assert.throws(() => makePlacement(sampleNames(), Math.random, 35), /좌석은 35석/);
   assert.throws(() => makePlacement([], Math.random, 145), /1~144/);
 });
-test('random placement includes the entire grid, even when most seats are empty', () => {
-  const result = makePlacement(['가람'], () => 0.99999, 12);
-  assert.equal(result[0], '가람');
-  const shifted = makePlacement(['가람'], () => 0, 12);
-  assert.equal(shifted[1], '가람');
+test('ordinary placement fills front rows and leaves only trailing seats empty', () => {
+  for (const count of [1, 7, 17, 38, 40]) {
+    const names = Array.from({length:count}, (_, i) => `학생${i}`);
+    for (let trial=0;trial<20;trial++) {
+      const result = makePlacement(names);
+      assert.equal(result.slice(0,count).filter(Boolean).length,count);
+      assert.ok(result.slice(count).every(name => name === ''));
+      for(let i=8;i<40;i++) if(result[i]) assert.ok(result[i-8]);
+    }
+  }
 });
 test('paired and individual grids contain each seat exactly once and reverse as a 180-degree rotation', () => {
   for (let rows = 1; rows <= 12; rows++) for (let columns = 1; columns <= 12; columns++) for (const paired of [true, false]) {
@@ -68,4 +73,42 @@ test('paired and individual grids contain each seat exactly once and reverse as 
 });
 test('accepts rosters beyond the former 40-seat limit up to 144 names', () => {
   assert.equal(readNames([['이름'], ...Array.from({length:144}, (_, i) => [`학생${i}`])]).length, 144);
+});
+test('reads pair IDs by row and preserves duplicate names, zero IDs and unpaired students', () => {
+  const roster = readRoster([['우리 반'],['번호','이름','짝 번호'],[1,'가람',0],[2,'나래',0],[3,'가람','A'],[4,'다온','A'],[5,'라온','']]);
+  assert.deepEqual(roster.names,['가람','나래','가람','다온','라온']);
+  assert.deepEqual(roster.pairIds,['0','0','A','A','']);
+  assert.deepEqual(readRoster([['이름'],['가람']]).pairIds,['']);
+});
+test('rejects incomplete, oversized, duplicate-header and nameless pair data', () => {
+  assert.throws(()=>readRoster([['이름','짝 번호'],['가람',1]]), /정확히 두 명/);
+  assert.throws(()=>readRoster([['이름','짝 번호'],['가람',1],['나래',1],['다온',1]]), /3명/);
+  assert.throws(()=>readRoster([['이름','짝 번호'],['',1],['나래',1]]), /이름이 비어/);
+  assert.throws(()=>readRoster([['이름','짝 번호','짝'],['가람',1,1]]), /하나만/);
+});
+test('pair placement preserves adjacency, same row, roster and front packing in every even-width classroom', () => {
+  for(let rows=1;rows<=12;rows++) for(let columns=2;columns<=12;columns+=2) {
+    for(const count of [...new Set([2, Math.max(2,rows*columns-1), rows*columns])]) {
+      const names=Array.from({length:count},(_,i)=>`학생${i}`);
+      const pairIds=names.map((_,i)=>i<Math.floor(count/4)*2 ? String(Math.floor(i/2)+1) : '');
+      pairIds[0]=pairIds[1]='first';
+      for(let trial=0;trial<5;trial++) {
+        const {seats,batches}=makePairPlacement(names,pairIds,rows,columns);
+        assert.deepEqual(seats.filter(Boolean).sort(),names.slice().sort());
+        assert.ok(seats.slice(0,count).every(Boolean)); assert.ok(seats.slice(count).every(s=>!s));
+        for(const id of new Set(pairIds.filter(Boolean))) {
+          const members=names.filter((_,i)=>pairIds[i]===id); const positions=members.map(n=>seats.indexOf(n));
+          assert.equal(Math.abs(positions[0]-positions[1]),1);
+          assert.equal(Math.floor(positions[0]/2),Math.floor(positions[1]/2));
+          assert.equal(Math.floor(positions[0]/columns),Math.floor(positions[1]/columns));
+        }
+        assert.equal(new Set(batches.flat()).size,count);
+      }
+    }
+  }
+});
+test('pair placement rejects unavailable layouts and keeps duplicate students', () => {
+  assert.throws(()=>makePairPlacement(['가람','나래'],['1','1'],2,3), /짝수/);
+  assert.throws(()=>makePairPlacement(['가람','나래'],['',''],1,2), /짝 정보가 없습니다/);
+  assert.deepEqual(makePairPlacement(['가람','가람'],['1','1'],1,2).seats,['가람','가람']);
 });

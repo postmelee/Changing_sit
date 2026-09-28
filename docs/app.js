@@ -7,7 +7,7 @@
   const isName = value => typeof value === 'string' && normalize(value) !== '' && !/^\d+(?:\.\d+)?$/.test(normalize(value));
   const sampleNames = () => Array.from({ length: 38 }, (_, i) => `학생${String(i + 1).padStart(2, '0')}`);
 
-  function readNames(rows) {
+  function readRoster(rows) {
     const filled = rows.filter(row => row.some(value => normalize(value) !== ''));
     if (!filled.length) throw new Error('명렬표가 비어 있습니다.');
     let headerRow = -1, column = -1;
@@ -27,13 +27,34 @@
       const ambiguous = candidate.filter(isName).length > 1;
       if (ambiguous) throw new Error('이름 열이 여러 개로 보입니다. 이름 열 제목을 ‘이름’으로 작성해 주세요.');
     }
-    const values = data.map(row => row[column]).filter(value => normalize(value) !== '');
+    const pairColumns = headerRow < 0 ? [] : filled[headerRow].flatMap((value, i) => /^(짝번호|짝|pair|pairid)$/i.test(normalize(value).replace(/\s/g, '')) ? [i] : []);
+    if (pairColumns.length > 1) throw new Error('짝 번호 열은 하나만 작성해 주세요.');
+    const pairColumn = pairColumns[0] ?? -1;
+    if (pairColumn >= 0 && data.some(row => !normalize(row[column]) && normalize(row[pairColumn]))) throw new Error('짝 번호가 있는 행의 이름이 비어 있습니다.');
+    const students = data.filter(row => normalize(row[column]) !== '');
+    const values = students.map(row => row[column]);
     if (values.some(value => !isName(value))) throw new Error('이름 열에 숫자만 있는 항목이 있습니다. 명렬표를 확인해 주세요.');
     const names = values.map(normalize);
     if (!names.length) throw new Error('이름을 찾지 못했습니다.');
     if (names.length > MAX_CAPACITY) throw new Error(`최대 ${MAX_CAPACITY}명까지 배치할 수 있습니다. 현재 ${names.length}명입니다.`);
     if (names.some(name => name.length > 30)) throw new Error('이름은 30자 이내로 작성해 주세요.');
-    return names;
+    const pairIds = students.map(row => pairColumn < 0 ? '' : normalize(row[pairColumn]));
+    pairUnits(names, pairIds);
+    return { names, pairIds };
+  }
+  function readNames(rows) { return readRoster(rows).names; }
+  function pairUnits(names, pairIds) {
+    if (pairIds.length !== names.length) throw new Error('이름과 짝 정보의 개수가 다릅니다.');
+    const pairs = new Map(), singles = [];
+    pairIds.forEach((id, index) => {
+      if (!id) { singles.push(index); return; }
+      if (!pairs.has(id)) pairs.set(id, []);
+      pairs.get(id).push(index);
+    });
+    for (const [id, members] of pairs) {
+      if (members.length !== 2) throw new Error(`짝 번호 ‘${id}’는 ${members.length}명입니다. 같은 번호를 정확히 두 명에게 지정하거나, 혼자 배치할 학생은 비워 주세요.`);
+    }
+    return { pairs: [...pairs.values()], singles };
   }
 
   function mixed(max, random = Math.random) {
@@ -48,9 +69,27 @@
     if (!Number.isInteger(capacity) || capacity < 1 || capacity > MAX_CAPACITY) throw new Error('좌석 수는 1~144석이어야 합니다.');
     if (names.length > capacity) throw new Error(`학생은 ${names.length}명인데 좌석은 ${capacity}석입니다. 교실 설정에서 좌석을 늘려 주세요.`);
     const result = Array(capacity).fill('');
-    const positions = mixed(capacity, random), students = mixed(names.length, random);
-    students.forEach((student, i) => { result[positions[i]] = names[student]; });
+    // Logical row zero is always closest to the board; reversing only changes the view.
+    mixed(names.length, random).forEach((student, seat) => { result[seat] = names[student]; });
     return result;
+  }
+  function makePairPlacement(names, pairIds, rows, columns, random = Math.random) {
+    const capacity = validateLayout(rows, columns, names.length);
+    if (columns % 2 !== 0) throw new Error('멘토·멘티 배치는 가로 열 수를 짝수로 설정해 주세요.');
+    const { pairs, singles } = pairUnits(names, pairIds);
+    if (!pairs.length) throw new Error('짝 정보가 없습니다. 엑셀에 ‘짝 번호’ 열을 추가하고 같은 번호를 두 명에게 지정해 주세요.');
+    // Fill complete desk pairs first; a lone unpaired student takes the final occupied seat.
+    const units = pairs.slice(), shuffledSingles = mixed(singles.length, random).map(i => singles[i]);
+    while (shuffledSingles.length >= 2) units.push(shuffledSingles.splice(0, 2));
+    const ordered = mixed(units.length, random).map(i => units[i]);
+    if (shuffledSingles.length) ordered.push(shuffledSingles);
+    const seats = Array(capacity).fill(''), batches = []; let seat = 0;
+    for (const unit of ordered) {
+      const batch = [];
+      for (const member of mixed(unit.length, random).map(i => unit[i])) { seats[seat] = names[member]; batch.push(seat++); }
+      batches.push(batch);
+    }
+    return { seats, batches };
   }
   function validateLayout(rows, columns, count = 0) {
     if (![rows, columns].every(value => Number.isInteger(value) && value >= 1 && value <= 12)) throw new Error('행과 열은 각각 1~12 사이의 정수로 입력해 주세요.');
@@ -73,11 +112,11 @@
     return result;
   }
   // Pure helpers are exported only for Node's built-in test runner.
-  if (typeof module !== 'undefined' && module.exports) { module.exports = { readNames, makePlacement, validateLayout, seatGroups, mixed, sampleNames }; return; }
+  if (typeof module !== 'undefined' && module.exports) { module.exports = { readNames, readRoster, pairUnits, makePairPlacement, makePlacement, validateLayout, seatGroups, mixed, sampleNames }; return; }
   const byId = id => document.getElementById(id);
   const groups = byId('groups'), status = byId('status'), workspace = byId('workspace');
   let rows = 5, columns = 8, paired = true;
-  let names = [], seats = Array(40).fill(''), reverse = false, timer = null, run = 0, importRun = 0;
+  let names = [], pairIds = [], seats = Array(40).fill(''), reverse = false, timer = null, run = 0, importRun = 0;
   let cells = [];
   const backgroundMusic = byId('background-music'), endingSound = byId('ending-sound');
   let soundEnabled = true, revealing = false;
@@ -120,7 +159,7 @@
     }
     byId('classroom').setAttribute('aria-label', `${capacity()}석 교실 자리표`);
     byId('seat-summary').textContent = `${columns}열 × ${rows}행 · ${capacity()}석`;
-    byId('pairs').setAttribute('aria-disabled', String(!paired || columns % 2 !== 0 || capacity() < 38));
+    syncPairs();
     render();
   }
   function render(highlight = -1) {
@@ -141,14 +180,14 @@
     if (names.length > capacity()) { announce(`학생 ${names.length}명 · 현재 ${capacity()}석. 교실 설정에서 좌석을 늘려 주세요.`, true); return false; }
     return true;
   }
-  function installRoster(next, label) {
-    stop(); names = next; seats.fill(''); render();
+  function installRoster(next, label, nextPairIds = next.map(() => '')) {
+    stop(); names = next; pairIds = nextPairIds; syncPairs(); seats.fill(''); render();
     byId('roster-name').textContent = label; byId('roster-name').title = label;
     byId('roster-count').textContent = `${names.length}명`;
     byId('shuffle').disabled = byId('slow').disabled = false;
-    if (ready()) announce(`${names.length}명을 불러왔습니다. ‘자리 바꾸기’를 눌러 주세요.`);
+    if (ready()) announce(`${names.length}명 · ${pairUnits(names, pairIds).pairs.length}쌍을 불러왔습니다. 일반 배치 또는 멘토·멘티 배치를 선택하세요.`);
   }
-  byId('sample').addEventListener('click', () => { importRun++; installRoster(sampleNames(), '예시 명렬표'); });
+  byId('sample').addEventListener('click', () => { importRun++; installRoster(sampleNames(), '예시 명렬표', sampleNames().map((_, i) => String(Math.floor(i / 2) + 1))); });
   byId('import').addEventListener('click', () => byId('file-object').click());
   byId('file-object').addEventListener('change', async event => {
     const file = event.target.files[0]; if (!file) return;
@@ -160,7 +199,8 @@
       const workbook = window.XLSX.read(bytes, { type: 'array', ...(/\.csv$/i.test(file.name) ? { codepage: 65001 } : {}) });
       if (!workbook.SheetNames.length) throw new Error('시트가 없는 파일입니다.');
       const sheetRows = window.XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '', raw: true });
-      installRoster(readNames(sheetRows), file.name);
+      const roster = readRoster(sheetRows);
+      installRoster(roster.names, file.name, roster.pairIds);
     } catch (error) { if (ticket === importRun) announce(error.message || '명렬표를 읽지 못했습니다.', true); }
     event.target.value = '';
   });
@@ -189,16 +229,25 @@
     const occupied = target.flatMap((name, i) => name ? [i] : []);
     revealPlacement(target, mixed(occupied.length).map(i => [occupied[i]]), `${names.length}명의 자리 배치가 완료되었습니다.`);
   });
+  function syncPairs() {
+    const { pairs, singles } = pairUnits(names, pairIds);
+    byId('pair-summary').textContent = names.length ? `${pairs.length}쌍 · 짝 미지정 ${singles.length}명` : '짝 정보 없음';
+    byId('pairs').setAttribute('aria-disabled', String(!paired || columns % 2 !== 0 || names.length > capacity() || !pairs.length));
+  }
   byId('pairs').addEventListener('click', () => {
-    if (!paired || columns % 2 !== 0 || capacity() < 38) { announce('멘토·멘티 예시는 짝꿍형·짝수 열·38석 이상에서 사용할 수 있습니다.', true); return; }
-    importRun++; installRoster(sampleNames(), '멘토·멘티 예시 명렬표');
-    const positions = mixed(capacity() / 2), pairs = mixed(19), target = Array(capacity()).fill(''), batches = [];
-    pairs.forEach((pair, i) => {
-      const left = positions[i] * 2;
-      target[left] = names[pair * 2]; target[left + 1] = names[pair * 2 + 1]; batches.push([left, left + 1]);
-    });
-    revealPlacement(target, batches, '예시 학생 38명을 멘토·멘티 19쌍으로 배치했습니다.');
-    announce('예시 멘토·멘티를 한 쌍씩 공개합니다. ‘자리 비우기’를 누르면 멈춥니다.');
+    if (!names.length) { announce('명렬표를 먼저 불러와 주세요.', true); return; }
+    if (!paired) { announce('멘토·멘티 배치는 책상 배치를 짝꿍형으로 설정해 주세요.', true); return; }
+    try {
+      const target = makePairPlacement(names, pairIds, rows, columns);
+      revealPlacement(target.seats, target.batches, `${names.length}명 배치 완료 · 지정한 ${pairUnits(names, pairIds).pairs.length}쌍을 유지했습니다.`);
+      announce('칠판 쪽부터 짝을 유지해 배치한 결과를 공개합니다. ‘자리 비우기’를 누르면 멈춥니다.');
+    } catch (error) { announce(error.message, true); }
+  });
+  byId('pair-template').addEventListener('click', () => {
+    const sheet = window.XLSX.utils.aoa_to_sheet([['번호', '이름', '짝 번호'], ...sampleNames().map((name, i) => [i + 1, name, Math.floor(i / 2) + 1])]);
+    sheet['!cols'] = [{ wch: 8 }, { wch: 18 }, { wch: 12 }];
+    const book = window.XLSX.utils.book_new(); window.XLSX.utils.book_append_sheet(book, sheet, '명렬표');
+    window.XLSX.writeFile(book, '짝-명렬표-예시.xlsx');
   });
   byId('reverse').addEventListener('click', () => { reverse = !reverse; buildGrid(); });
   byId('clear').addEventListener('click', () => { importRun++; stop(); seats.fill(''); render(); announce(names.length ? '자리를 비웠습니다. 명렬표는 유지됩니다.' : '자리를 비웠습니다. 예시 명렬표 또는 엑셀을 불러오세요.'); });
@@ -249,13 +298,15 @@
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && workspace.classList.contains('is-expanded')) { workspace.classList.remove('is-expanded'); syncFullscreen(); byId('fullscreen').focus(); }
   });
-  byId('sidebar-toggle').addEventListener('click', () => {
-    const hidden = !byId('sidebar').hidden;
-    byId('sidebar').hidden = hidden;
+  function setSidebarHidden(hidden) {
+    byId('sidebar-content').hidden = hidden;
     byId('app').classList.toggle('sidebar-hidden', hidden);
-    byId('sidebar-toggle').textContent = hidden ? '설정 보이기' : '설정 숨기기';
+    byId('sidebar-toggle').textContent = hidden ? '›' : '‹';
+    byId('sidebar-toggle').setAttribute('aria-label', hidden ? '설정 보이기' : '설정 숨기기');
+    byId('sidebar-toggle').title = hidden ? '설정 보이기' : '설정 숨기기';
     byId('sidebar-toggle').setAttribute('aria-expanded', String(!hidden));
-  });
+  }
+  byId('sidebar-toggle').addEventListener('click', () => setSidebarHidden(!byId('sidebar-content').hidden));
   const pairsInfo = byId('pairs-info'), helpToggle = byId('pairs-help-toggle');
   function dismissHelp() {
     pairsInfo.classList.remove('open'); pairsInfo.classList.add('dismissed');
